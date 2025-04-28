@@ -25,7 +25,7 @@ def write_to_csv(csv_file: CsvFile,
         try:
             row = {}
             for column in csv_file.get_csv_columns():
-                row[column] = getattr(diameter_message, column)
+                row[column] = getattr(diameter_message, column).strip()
             csv_file.write_row(row)
             csv_file.flush()
         except Exception as e:
