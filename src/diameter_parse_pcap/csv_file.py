@@ -26,9 +26,11 @@ class CsvFile:
         else:
             self.file_handler = open(filename, 'a')
             self.csv_writer = csv.DictWriter(self.file_handler, fieldnames=csv_columns)
+        self.n_records = 0
 
     def write_row(self, row: dict):
         self.csv_writer.writerow(row)
+        self.n_records += 1
 
     def close(self):
         self.file_handler.close()
