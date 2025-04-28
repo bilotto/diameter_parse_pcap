@@ -1,14 +1,20 @@
 from typing import *
 from diameter.message.constants import *
+import logging
 
+logger = logging.getLogger(__name__)
 
 import datetime
 def convert_timestamp(ts, gmt_delta=0) -> str:
     return (datetime.datetime.fromtimestamp(float(ts)) + datetime.timedelta(hours=gmt_delta)).strftime('%Y-%m-%d %H:%M:%S')
 
 import socket
-def bytes_to_ip(ip_bytes):  
-    return socket.inet_ntoa(ip_bytes)
+def bytes_to_ip(ip_bytes):
+    try:
+        return socket.inet_ntoa(ip_bytes)
+    except:
+        logger.error(f"Error converting bytes to IP: {ip_bytes}")
+        return None
 
 from diameter.message.avp.grouped import SubscriptionId
 def parse_subscription_id(subscription_id: List[SubscriptionId]):
@@ -35,4 +41,5 @@ def decode_framed_ipv6(raw_bytes):
         ipv6_address = ipaddress.IPv6Address(ipv6_prefix_bytes_padded)
         return f"{ipv6_address}/{prefix_length}"
     except:
+        logger.error(f"Error decoding framed IPv6: {raw_bytes}")
         return None
