@@ -25,7 +25,12 @@ def write_to_csv(csv_file: CsvFile,
         try:
             row = {}
             for column in csv_file.get_csv_columns():
-                row[column] = getattr(diameter_message, column).strip()
+                value = getattr(diameter_message, column)
+                # Convert value to string and handle None values
+                if value is None:
+                    row[column] = ""
+                else:
+                    row[column] = str(value).strip()
             csv_file.write_row(row)
             csv_file.flush()
         except Exception as e:
