@@ -85,20 +85,7 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 # Get some information from the diameter_message that we know for sure it's there
                 apn = diameter_message.message.called_station_id
                 #
-                # If it's a CCR_I, we can identify the subscriber by subscription_id
-                parsed_subscription_id = parse_subscription_id(diameter_message.message.subscription_id)
-                msisdn = parsed_subscription_id[0]
-                imsi = parsed_subscription_id[1]
-                # Try to check if the subscribers already exists in SessionManager
-                subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-                if not subscriber_:
-                    # If subscriber not found, we can proceed to create a new subscriber if the flag create_subscribers is True, or discard the message
-                    if not create_subscribers:
-                        return None
-                    session_manager.add_subscriber(Subscriber(msisdn, imsi))
-                    subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-                # Subscriber found, lets create the GxSession
-                #
+                # If it's a CCR_I, subscriber is already set
                 if diameter_message.message.framed_ip_address:
                     framed_ip_address = bytes_to_ip(diameter_message.message.framed_ip_address)
                 elif diameter_message.message.framed_ipv6_prefix:
@@ -116,14 +103,15 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 gx_session.set_mcc_mnc(mcc_mnc)
                 session_manager.add_gx_session(gx_session)
             else:
-                # It's CCR_U or CCR_T - GxSession should have been retrieved earlier by session_id
+                # It's CCA_I, CCR_U/CCA_U or CCR_T/CCA_T - GxSession should have been retrieved earlier by session_id
                 if not gx_session:
                     logger.error(f"GxSession not found for session_id: {session_id}")
                     return diameter_message
                 subscriber_ = gx_session.subscriber
             # Set diameter_message attributes
             diameter_message.subscriber = subscriber_
-            diameter_message.framed_ip_address = gx_session.framed_ip_address
+            diameter_message.framed_ip_address = gx_session._framed_ip_address
+            diameter_message.framed_ipv6_prefix = gx_session._framed_ipv6_prefix
             diameter_message.mcc_mnc = gx_session.mcc_mnc
             diameter_message.apn = gx_session.apn
             # Finally, add the message to the GxSession
