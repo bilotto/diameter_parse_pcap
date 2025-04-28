@@ -3,6 +3,9 @@ import os
 
 CSV_COLUMNS = [
     'timestamp',
+    'app_id',
+    'pcap_filepath',
+    'pkt_number',
     'session_id',
     'name',
     'msisdn',

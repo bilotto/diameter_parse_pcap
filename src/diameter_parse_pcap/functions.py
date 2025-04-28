@@ -38,9 +38,9 @@ def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessage]:
     else:
         payload_hex = pkt.diameter_raw.value
     diameter_message = DiameterMessage(payload_hex)
-    pkt_diameter_messages.append(diameter_message)
-    diameter_message.set_timestamp(pkt.frame_info.time_epoch)
+    diameter_message.timestamp = pkt.frame_info.time_epoch
     diameter_message.pkt_number = pkt.number
+    pkt_diameter_messages.append(diameter_message)
     if pkt.diameter_raw.duplicate_layers:
         for i in pkt.diameter_raw.duplicate_layers:
             payload_hex = i.value
@@ -50,8 +50,8 @@ def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessage]:
                 continue
             diameter_bytes = bytes.fromhex(i.value)
             diameter_message = DiameterMessage(Message.from_bytes(diameter_bytes))
-            diameter_message.set_timestamp(pkt.frame_info.time_epoch)
-            diameter_message.set_pkt_number(pkt.number)
+            diameter_message.timestamp = pkt.frame_info.time_epoch
+            diameter_message.pkt_number = pkt.number
             pkt_diameter_messages.append(diameter_message)
 
     return pkt_diameter_messages

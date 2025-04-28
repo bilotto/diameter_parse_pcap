@@ -60,7 +60,7 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                     return None
                 session_manager.add_subscriber(Subscriber(msisdn, imsi))
                 subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-                diameter_message.set_subscriber(subscriber_)
+                diameter_message.subscriber = subscriber_
                 
                 
 
@@ -122,9 +122,9 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                     return diameter_message
                 subscriber_ = gx_session.subscriber
             # Set diameter_message attributes
-            diameter_message.set_subscriber(subscriber_)
-            diameter_message.set_framed_ip_address(gx_session.framed_ip_address or gx_session.framed_ipv6_prefix)
-            diameter_message.set_mcc_mnc(gx_session.mcc_mnc)
+            diameter_message.subscriber = subscriber_
+            diameter_message.framed_ip_address = gx_session.framed_ip_address or gx_session.framed_ipv6_prefix
+            diameter_message.mcc_mnc = gx_session.mcc_mnc
             # Finally, add the message to the GxSession
             gx_session.add_message(diameter_message)
             session_manager.add_gx_session(gx_session)
@@ -143,10 +143,10 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 sy_session.set_gx_session_id(gx_session.session_id)
                 sy_session.set_subscriber(subscriber_)
                 session_manager.add_sy_session(sy_session)
-                diameter_message.set_subscriber(subscriber_)
+                diameter_message.subscriber = subscriber_
             else:
                 subscriber_ = sy_session.subscriber
-                diameter_message.set_subscriber(subscriber_)
+                diameter_message.subscriber = subscriber_
             
 
         elif diameter_message.app_id == APP_3GPP_RX:
