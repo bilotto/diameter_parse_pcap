@@ -1,8 +1,20 @@
 import csv
 import os
 
+CSV_COLUMNS = [
+    'timestamp',
+    'session_id',
+    'name',
+    'msisdn',
+    'imsi',
+    'apn',
+    'framed_ip_address',
+    'mcc_mnc',
+    'result_code'
+]
+
 class CsvFile:
-    def __init__(self, filename: str, csv_columns: list, replace_existing: bool = False):
+    def __init__(self, filename: str, csv_columns: list = CSV_COLUMNS, replace_existing: bool = False):
         self.filename = filename
         if not os.path.exists(filename) or replace_existing:
             self.file_handler = open(filename, 'w')

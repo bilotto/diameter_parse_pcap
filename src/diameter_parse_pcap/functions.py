@@ -29,7 +29,7 @@ def create_pyshark_object(pcap_file: Pcap):
     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
 
 
-from DiamTelecom.diameter import DiameterMessage, Message
+from diameter_telecom.diameter_message import DiameterMessage, Message
 
 def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessage]:
     pkt_diameter_messages = []
@@ -61,15 +61,13 @@ def get_diameter_messages_from_pcap(pcap: Pcap) -> List[DiameterMessage]:
     for pkt in pcap.pyshark_obj:
         pkt_timestamp = pkt.frame_info.time_epoch
         pkt_number = pkt.number
-        pkt_diameter_messages = pcap.get_diameter_messages_from_pkt(pkt)
+        pkt_diameter_messages = get_diameter_messages_from_pkt(pkt)
         if not pkt_diameter_messages:
             print(f"No Diameter messages found in packet {pkt_number}")
         for diameter_message in pkt_diameter_messages:
             if not isinstance(diameter_message, DiameterMessage):
                 continue
-            diameter_message.set_timestamp(pkt_timestamp)
-            diameter_message.set_pkt_number(pkt_number)
-            diameter_message.set_pcap_filename(pcap.filename)
+            diameter_message.pcap_filepath = pcap.filepath
             pcap_diameter_messages.append(diameter_message)
 
     return pcap_diameter_messages

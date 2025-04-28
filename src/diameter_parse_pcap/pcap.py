@@ -15,6 +15,13 @@ class Pcap:
         self.n_diameter_messages = 0
         self.pid_file = None
         self.cut_short = False
+        self._pyshark_obj = None
+
+    @property
+    def pyshark_obj(self):
+        if self._pyshark_obj is None:
+            self._pyshark_obj = create_pyshark_object(self)
+        return self._pyshark_obj
 
     def __eq__(self, value):
         if isinstance(value, Pcap):
@@ -129,3 +136,9 @@ class Pcap:
         except subprocess.CalledProcessError as e:
             print(f"Error calculating md5sum for {filepath}: {e}")
             return None
+        
+
+import pyshark
+
+def create_pyshark_object(pcap_file: Pcap):
+    return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
