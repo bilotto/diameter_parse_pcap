@@ -123,8 +123,9 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 subscriber_ = gx_session.subscriber
             # Set diameter_message attributes
             diameter_message.subscriber = subscriber_
-            diameter_message.framed_ip_address = gx_session.framed_ip_address or gx_session.framed_ipv6_prefix
+            diameter_message.framed_ip_address = gx_session.framed_ip_address
             diameter_message.mcc_mnc = gx_session.mcc_mnc
+            diameter_message.apn = gx_session.apn
             # Finally, add the message to the GxSession
             gx_session.add_message(diameter_message)
             session_manager.add_gx_session(gx_session)
