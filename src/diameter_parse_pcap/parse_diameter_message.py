@@ -2,10 +2,10 @@ import sys
 import os
 from typing import *
 from diameter.message import dump
-from diameter_telecom.constants import *
-from diameter_telecom.diameter_message import DiameterMessage
-from diameter_telecom.subscriber import Subscriber
-from diameter_telecom.diameter_session import GxSession, SySession
+from diameter_telecom.diameter.constants import *
+from diameter_telecom.diameter.parse_avp import *
+from diameter_telecom import DiameterMessage, Subscriber
+from diameter_telecom.diameter.session import *
 from .session_manager import SessionManager
 #
 from ._parse_functions import *
@@ -87,7 +87,7 @@ def parse_diameter_message(diameter_message: DiameterMessage,
             #     return diameter_message
             if diameter_message.name == CCR_I:
                 # Get some information from the diameter_message that we know for sure it's there
-                apn = diameter_message.message.called_station_id
+                called_station_id = diameter_message.message.called_station_id
                 #
                 # If it's a CCR_I, we can identify the subscriber by subscription_id
                 parsed_subscription_id = parse_subscription_id(diameter_message.message.subscription_id)
@@ -105,13 +105,13 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                     framed_ip_address = bytes_to_ip(diameter_message.message.framed_ip_address)
                 if diameter_message.message.framed_ipv6_prefix:
                     framed_ipv6_prefix = decode_framed_ipv6(diameter_message.message.framed_ipv6_prefix)
-                gx_session = GxSession(session_id)
-                gx_session.set_subscriber(subscriber_)
+                gx_session = GxSession(session_id, subscriber=subscriber_)
+                # gx_session.set_subscriber(subscriber_)
                 if hasattr(diameter_message.message, 'sgsn_mcc_mnc'):
-                    gx_session.mcc_mnc = diameter_message.message.sgsn_mcc_mnc
-                gx_session._framed_ipv6_prefix = framed_ipv6_prefix
-                gx_session._framed_ip_address = framed_ip_address
-                gx_session.apn = apn
+                    gx_session.sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
+                gx_session.framed_ipv6_prefix = framed_ipv6_prefix
+                gx_session.framed_ip_address = framed_ip_address
+                gx_session.called_station_id = called_station_id
                 session_manager.add_gx_session(gx_session)
             else:
                 # It's CCR_U or CCR_T - GxSession should have been retrieved earlier by session_id
@@ -121,10 +121,10 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 subscriber_ = gx_session.subscriber
             # Set diameter_message attributes
             diameter_message.subscriber = subscriber_
-            diameter_message.framed_ip_address = gx_session._framed_ip_address
-            diameter_message.framed_ipv6_prefix = gx_session._framed_ipv6_prefix
-            diameter_message.mcc_mnc = gx_session.mcc_mnc
-            diameter_message.apn = gx_session.apn
+            diameter_message.framed_ip_address = gx_session.framed_ip_address
+            diameter_message.framed_ipv6_prefix = gx_session.framed_ipv6_prefix
+            diameter_message.sgsn_mcc_mnc = gx_session.sgsn_mcc_mnc
+            diameter_message.called_station_id = gx_session.called_station_id
             # Finally, add the message to the GxSession
             gx_session.add_message(diameter_message)
             session_manager.add_gx_session(gx_session)
@@ -147,9 +147,7 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                         if not gx_session:
                             logger.error(f"GxSession active not found for msisdn: {subscriber_.msisdn}")
                             return None
-                        sy_session = SySession(session_id)
-                        sy_session.set_gx_session_id(gx_session.session_id)
-                        sy_session.set_subscriber(subscriber_)
+                        sy_session = SySession(session_id, subscriber=subscriber_, gx_session_id=gx_session.session_id)
                         session_manager.add_sy_session(sy_session)
             else:
                 # SySession found

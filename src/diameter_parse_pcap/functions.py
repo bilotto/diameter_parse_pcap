@@ -29,7 +29,8 @@ def create_pyshark_object(pcap_file: Pcap):
     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
 
 
-from diameter_telecom.diameter_message import DiameterMessage, Message
+from diameter_telecom import DiameterMessage
+from diameter.message import Message
 
 def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessage]:
     pkt_diameter_messages = []

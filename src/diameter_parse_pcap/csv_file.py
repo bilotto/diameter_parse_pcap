@@ -12,7 +12,7 @@ CSV_COLUMNS = [
     'imsi',
     'apn',
     'framed_ip_address',
-    'mcc_mnc',
+    'sgsn_mcc_mnc',
     'result_code'
 ]
 

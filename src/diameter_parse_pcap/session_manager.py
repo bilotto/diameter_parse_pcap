@@ -1,8 +1,6 @@
 from typing import *
-from diameter_telecom.subscriber import Subscriber
-from diameter_telecom.constants import *
-from diameter_telecom.diameter_session import GxSession, SySession, RxSession
-from diameter_telecom.diameter_message import DiameterMessage
+from diameter_telecom.diameter.constants import *
+from diameter_telecom import Subscriber, DiameterMessage, GxSession, SySession, RxSession
 
 import logging
 logger = logging.getLogger(__name__)
