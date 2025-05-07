@@ -2,6 +2,9 @@ import os
 import subprocess
 from datetime import datetime
 import re
+from typing import List
+from diameter_telecom import DiameterMessage
+from diameter.message import Message
 
 class Pcap:
 
@@ -136,7 +139,47 @@ class Pcap:
         except subprocess.CalledProcessError as e:
             print(f"Error calculating md5sum for {filepath}: {e}")
             return None
-        
+
+    def get_diameter_messages_from_pkt(self, pkt) -> List[DiameterMessage]:
+        pkt_diameter_messages = []
+        if isinstance(pkt.diameter_raw.value, list):
+            payload_hex = pkt.diameter_raw.value[0]
+        else:
+            payload_hex = pkt.diameter_raw.value
+        diameter_message = DiameterMessage(payload_hex)
+        diameter_message.timestamp = pkt.frame_info.time_epoch
+        diameter_message.pkt_number = pkt.number
+        pkt_diameter_messages.append(diameter_message)
+        if pkt.diameter_raw.duplicate_layers:
+            for i in pkt.diameter_raw.duplicate_layers:
+                payload_hex = i.value
+                if isinstance(payload_hex, list):
+                    print("payload_hex is list")
+                if not isinstance(payload_hex, str):
+                    continue
+                diameter_bytes = bytes.fromhex(i.value)
+                diameter_message = DiameterMessage(Message.from_bytes(diameter_bytes))
+                diameter_message.timestamp = pkt.frame_info.time_epoch
+                diameter_message.pkt_number = pkt.number
+                pkt_diameter_messages.append(diameter_message)
+
+        return pkt_diameter_messages
+
+    def get_diameter_messages_from_pcap(self) -> List[DiameterMessage]:
+        pcap_diameter_messages = []
+        for pkt in self.pyshark_obj:
+            pkt_timestamp = pkt.frame_info.time_epoch
+            pkt_number = pkt.number
+            pkt_diameter_messages = self.get_diameter_messages_from_pkt(pkt)
+            if not pkt_diameter_messages:
+                print(f"No Diameter messages found in packet {pkt_number}")
+            for diameter_message in pkt_diameter_messages:
+                if not isinstance(diameter_message, DiameterMessage):
+                    continue
+                diameter_message.pcap_filepath = self.filepath
+                pcap_diameter_messages.append(diameter_message)
+
+        return pcap_diameter_messages
 
 import pyshark
 
