@@ -167,17 +167,24 @@ class Pcap:
 
     def get_diameter_messages_from_pcap(self) -> List[DiameterMessage]:
         pcap_diameter_messages = []
-        for pkt in self.pyshark_obj:
-            pkt_timestamp = pkt.frame_info.time_epoch
-            pkt_number = pkt.number
-            pkt_diameter_messages = self.get_diameter_messages_from_pkt(pkt)
-            if not pkt_diameter_messages:
-                print(f"No Diameter messages found in packet {pkt_number}")
-            for diameter_message in pkt_diameter_messages:
-                if not isinstance(diameter_message, DiameterMessage):
-                    continue
-                diameter_message.pcap_filepath = self.filepath
-                pcap_diameter_messages.append(diameter_message)
+        try:
+            for pkt in self.pyshark_obj:
+                pkt_timestamp = pkt.frame_info.time_epoch
+                pkt_number = pkt.number
+                pkt_diameter_messages = self.get_diameter_messages_from_pkt(pkt)
+                if not pkt_diameter_messages:
+                    print(f"No Diameter messages found in packet {pkt_number}")
+                for diameter_message in pkt_diameter_messages:
+                    if not isinstance(diameter_message, DiameterMessage):
+                        continue
+                    diameter_message.pcap_filepath = self.filepath
+                    pcap_diameter_messages.append(diameter_message)
+        except pyshark.capture.capture.TSharkCrashException as e:
+            if "appears to have been cut short" in str(e):
+                print(f"File {self.filepath} appears to have been cut short. Processing available packets...")
+                self.cut_short = True
+            else:
+                raise e
 
         return pcap_diameter_messages
 
@@ -185,3 +192,5 @@ import pyshark
 
 def create_pyshark_object(pcap_file: Pcap):
     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
+
+
