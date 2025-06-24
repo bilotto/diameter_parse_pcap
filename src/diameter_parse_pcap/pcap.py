@@ -43,6 +43,8 @@ class Pcap:
     def to_dict(self):
         pcap_dict = dict()
         pcap_dict['filepath'] = self.filepath
+        if self.ports:
+            pcap_dict['ports'] = self.ports
         if self.start_timestamp:
             pcap_dict['start_timestamp'] = self.start_timestamp
         if self.end_timestamp:
@@ -104,7 +106,8 @@ class Pcap:
         return f"sudo tcpdump -i {interface} port {','.join(map(str, self.ports))} -w {self.filepath} &"
 
     def get_timestamps(self):
-        command = f"tshark -r {self.filepath} -Y \"{self.filter}\" -T fields -e frame.time_epoch"
+        print(f"Getting timestamps from {self.filepath} with filter '{self.filter}'")
+        command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch"
         try:
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
             if not output:

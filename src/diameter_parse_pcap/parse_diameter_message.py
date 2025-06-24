@@ -44,36 +44,39 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                              csv_file: CsvFile = None,
                              ):
     try:
-        subscriber_ = None
+        subscriber = None
         session_id = diameter_message.message.session_id
+        #
         gx_session = None
         sy_session = None
         rx_session = None
+        #
         framed_ip_address = None
         framed_ipv6_prefix = None
         mcc_mnc = None
         apn = None
+        sgsn_mcc_mnc = None
 
         # if hasattr(diameter_message.message, 'subscription_id'):
         #     parsed_subscription_id = parse_subscription_id(diameter_message.message.subscription_id)
         #     msisdn = parsed_subscription_id[0]
         #     imsi = parsed_subscription_id[1]
         #     # Try to check if the subscribers already exists in SessionManager
-        #     subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-        #     if not subscriber_:
+        #     subscriber = session_manager.get_subscriber_by_msisdn(msisdn)
+        #     if not subscriber:
         #         if not create_subscribers:
         #             return None
         #         session_manager.add_subscriber(Subscriber(msisdn, imsi))
-        #         subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-        #         logger.info(f"Added subscriber: {subscriber_} in message: {diameter_message.name}")
-        #         diameter_message.subscriber = subscriber_
+        #         subscriber = session_manager.get_subscriber_by_msisdn(msisdn)
+        #         logger.info(f"Added subscriber: {subscriber} in message: {diameter_message.name}")
+        #         diameter_message.subscriber = subscriber
                 
         if diameter_message.app_id == APP_3GPP_GX:
             # First, try to get the gx_session by session_id
             gx_session = session_manager.get_gx_session(session_id)
             # If gx_session is found, we can retrieve subscriber from GxSession
             if gx_session:
-                subscriber_ = gx_session.subscriber
+                subscriber = gx_session.subscriber
                 # If gx_session is found and it's CCR_I, that means it's probably a duplicate CCR_I
                 if diameter_message.name == CCR_I:
                     logger.error(f"Session already exists: {gx_session}")
@@ -94,33 +97,36 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                 msisdn = parsed_subscription_id[0]
                 imsi = parsed_subscription_id[1]
                 # Try to check if the subscribers already exists in SessionManager
-                subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-                if not subscriber_:
+                subscriber = session_manager.get_subscriber_by_msisdn(msisdn)
+                if not subscriber:
                     # If subscriber not found, we can proceed to create a new subscriber if the flag create_subscribers is True, or discard the message
                     if not create_subscribers:
                         return None
-                    session_manager.add_subscriber(Subscriber(msisdn, msisdn, imsi))
-                    subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
+                    session_manager.add_subscriber(Subscriber(msisdn=msisdn, imsi=imsi))
+                    subscriber = session_manager.get_subscriber_by_msisdn(msisdn)
                 if diameter_message.message.framed_ip_address:
                     framed_ip_address = bytes_to_ip(diameter_message.message.framed_ip_address)
                 if diameter_message.message.framed_ipv6_prefix:
                     framed_ipv6_prefix = decode_framed_ipv6(diameter_message.message.framed_ipv6_prefix)
-                gx_session = GxSession(session_id, subscriber=subscriber_)
-                # gx_session.set_subscriber(subscriber_)
                 if hasattr(diameter_message.message, 'sgsn_mcc_mnc'):
-                    gx_session.sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
-                gx_session.framed_ipv6_prefix = framed_ipv6_prefix
-                gx_session.framed_ip_address = framed_ip_address
-                gx_session.called_station_id = called_station_id
+                    sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
+
+                gx_session = GxSession(session_id=session_id, subscriber=subscriber, framed_ip_address=framed_ip_address, framed_ipv6_prefix=framed_ipv6_prefix, called_station_id=called_station_id, sgsn_mcc_mnc=sgsn_mcc_mnc)
+                # gx_session.set_subscriber(subscriber)
+                # if hasattr(diameter_message.message, 'sgsn_mcc_mnc'):
+                #     gx_session.sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
+                # gx_session.framed_ipv6_prefix = framed_ipv6_prefix
+                # gx_session.framed_ip_address = framed_ip_address
+                # gx_session.called_station_id = called_station_id
                 session_manager.add_gx_session(gx_session)
             else:
                 # It's CCR_U or CCR_T - GxSession should have been retrieved earlier by session_id
                 if not gx_session:
                     logger.error(f"GxSession not found for session_id: {session_id}")
                     return diameter_message
-                subscriber_ = gx_session.subscriber
+                # subscriber = gx_session.subscriber
             # Set diameter_message attributes
-            diameter_message.subscriber = subscriber_
+            diameter_message.subscriber = gx_session.subscriber
             diameter_message.framed_ip_address = gx_session.framed_ip_address
             diameter_message.framed_ipv6_prefix = gx_session.framed_ipv6_prefix
             diameter_message.sgsn_mcc_mnc = gx_session.sgsn_mcc_mnc
@@ -138,26 +144,25 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                     msisdn = parsed_subscription_id[0]
                     imsi = parsed_subscription_id[1]
                     # Try to check if the subscribers already exists in SessionManager
-                    subscriber_ = session_manager.get_subscriber_by_msisdn(msisdn)
-                    if not subscriber_:
+                    subscriber = session_manager.get_subscriber_by_msisdn(msisdn)
+                    if not subscriber:
                         return None
                     else:
-                        diameter_message.subscriber = subscriber_
-                        gx_session = session_manager.get_active_gx_session_by_msisdn(subscriber_.msisdn)
+                        diameter_message.subscriber = subscriber
+                        gx_session = session_manager.get_active_gx_session_by_msisdn(subscriber.msisdn)
                         if not gx_session:
-                            logger.error(f"GxSession active not found for msisdn: {subscriber_.msisdn}")
+                            logger.error(f"GxSession active not found for msisdn: {subscriber.msisdn}")
                             return None
-                        sy_session = SySession(session_id, subscriber=subscriber_, gx_session_id=gx_session.session_id)
+                        sy_session = SySession(session_id, subscriber=subscriber, gx_session_id=gx_session.session_id)
                         session_manager.add_sy_session(sy_session)
             else:
                 # SySession found
-                subscriber_ = sy_session.subscriber
-                diameter_message.subscriber = subscriber_
-            
-
+                subscriber = sy_session.subscriber
+                diameter_message.subscriber = subscriber
         elif diameter_message.app_id == APP_3GPP_RX:
             pass
         else:
+            print(f"Returning None for diameter_message: {diameter_message.name} due to app_id not found")
             return None
         try:
             with lock:

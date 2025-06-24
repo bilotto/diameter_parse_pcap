@@ -1,5 +1,6 @@
 from typing import *
 import json
+import os
 
 def read_pcap_json(file_path: str) -> List[Dict[str, Any]]:
     """
@@ -7,6 +8,9 @@ def read_pcap_json(file_path: str) -> List[Dict[str, Any]]:
     :param file_path: Path to the JSON file.
     :return: List of dictionaries.
     """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+    print(f"Reading JSON file: {file_path}")
     with open(file_path, 'r') as f:
         data = f.read()
     return json.loads(data)  # Safely parse JSON
@@ -21,12 +25,13 @@ def create_from_dict(pcap_dict: dict) -> Pcap:
     pcap.n_diameter_messages = pcap_dict.get('n_diameter_messages', 0)
     pcap.cut_short = pcap_dict.get('cut_short', False)
     pcap.filter = pcap_dict.get('filter', 'diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280')
+    pcap.ports = pcap_dict.get('ports', [])
     return pcap
 
-import pyshark
+# import pyshark
 
-def create_pyshark_object(pcap_file: Pcap):
-    return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
+# def create_pyshark_object(pcap_file: Pcap):
+#     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
 
 
 from diameter_telecom import DiameterMessage
@@ -72,3 +77,11 @@ def get_diameter_messages_from_pcap(pcap: Pcap) -> List[DiameterMessage]:
             pcap_diameter_messages.append(diameter_message)
 
     return pcap_diameter_messages
+
+__all__= [
+    'read_pcap_json',
+    'create_from_dict',
+    # 'create_pyshark_object',
+    'get_diameter_messages_from_pcap',
+    'get_diameter_messages_from_pkt'
+]
