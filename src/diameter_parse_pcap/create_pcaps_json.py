@@ -108,6 +108,12 @@ def read_from_json(pcaps_json_filepath: str) -> List[Pcap]:
     all_pcaps.sort(key=lambda x: float('inf') if x.start_timestamp is None else x.start_timestamp)
     return all_pcaps
 
+def read_from_json_dict(pcaps_json_filepath: str) -> Dict[str, Pcap]:
+    all_pcaps: Dict[str, Pcap] = {}
+    for i in read_pcap_json(pcaps_json_filepath):
+        all_pcaps[i['filepath']] = create_from_dict(i)
+    return all_pcaps
+
 
 
 # try:
