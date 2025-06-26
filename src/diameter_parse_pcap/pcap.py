@@ -8,7 +8,7 @@ from diameter.message import Message
 
 class Pcap:
 
-    def __init__(self, filepath, ports: list = [], sctp=False, filter='diameter'):
+    def __init__(self, filepath, ports: list = [], sctp=False, filter='diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280'):
         self.filepath = filepath
         self.ports = ports
         self.sctp = sctp
