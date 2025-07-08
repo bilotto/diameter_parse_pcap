@@ -3,7 +3,7 @@ import subprocess
 from datetime import datetime
 import re
 from typing import List
-from diameter_telecom import DiameterMessage
+from .diameter_message import DiameterMessagePcap
 from diameter.message import Message
 
 class Pcap:
@@ -143,13 +143,13 @@ class Pcap:
             print(f"Error calculating md5sum for {filepath}: {e}")
             return None
 
-    def get_diameter_messages_from_pkt(self, pkt) -> List[DiameterMessage]:
+    def get_diameter_messages_from_pkt(self, pkt) -> List[DiameterMessagePcap]:
         pkt_diameter_messages = []
         if isinstance(pkt.diameter_raw.value, list):
             payload_hex = pkt.diameter_raw.value[0]
         else:
             payload_hex = pkt.diameter_raw.value
-        diameter_message = DiameterMessage(payload_hex)
+        diameter_message = DiameterMessagePcap(payload_hex)
         diameter_message.timestamp = pkt.frame_info.time_epoch
         diameter_message.pkt_number = pkt.number
         pkt_diameter_messages.append(diameter_message)
@@ -161,14 +161,14 @@ class Pcap:
                 if not isinstance(payload_hex, str):
                     continue
                 diameter_bytes = bytes.fromhex(i.value)
-                diameter_message = DiameterMessage(Message.from_bytes(diameter_bytes))
+                diameter_message = DiameterMessagePcap(Message.from_bytes(diameter_bytes))
                 diameter_message.timestamp = pkt.frame_info.time_epoch
                 diameter_message.pkt_number = pkt.number
                 pkt_diameter_messages.append(diameter_message)
 
         return pkt_diameter_messages
 
-    def get_diameter_messages_from_pcap(self) -> List[DiameterMessage]:
+    def get_diameter_messages_from_pcap(self) -> List[DiameterMessagePcap]:
         pcap_diameter_messages = []
         try:
             for pkt in self.pyshark_obj:
@@ -178,7 +178,7 @@ class Pcap:
                 if not pkt_diameter_messages:
                     print(f"No Diameter messages found in packet {pkt_number}")
                 for diameter_message in pkt_diameter_messages:
-                    if not isinstance(diameter_message, DiameterMessage):
+                    if not isinstance(diameter_message, DiameterMessagePcap):
                         continue
                     diameter_message.pcap_filepath = self.filepath
                     pcap_diameter_messages.append(diameter_message)

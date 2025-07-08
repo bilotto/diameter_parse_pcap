@@ -1,6 +1,6 @@
 from typing import *
 from diameter_telecom.diameter.constants import *
-from diameter_telecom import Subscriber, DiameterMessage, GxSession, SySession, RxSession
+from diameter_telecom import Subscriber, GxSession, SySession, RxSession
 
 import logging
 logger = logging.getLogger(__name__)
@@ -12,7 +12,6 @@ class SessionManager:
     gx_sessions: Dict[str, GxSession]
     sy_sessions: Dict[str, SySession]
     rx_sessions: Dict[str, RxSession]
-    orphan_messages: List[DiameterMessage]
 
     def __init__(self,
                  subscribers: dict = None,
@@ -38,15 +37,6 @@ class SessionManager:
             self.rx_sessions = {}
 
         self.lock = threading.Lock()
-
-        self.orphan_messages = []
-
-    def add_orphan_message(self, message):
-        with self.lock:
-            session_id = message.session_id
-            if self.gx_sessions.get_session_by_id(session_id):
-                print(f"GX session found for session_id: {session_id}, message: {message}")
-            self.orphan_messages.append(message)
 
     def add_gx_session(self, gx_session: GxSession):
         with self.lock:

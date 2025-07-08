@@ -4,9 +4,10 @@ from typing import *
 from diameter.message import dump
 from diameter_telecom.diameter.constants import *
 from diameter_telecom.diameter.parse_avp import *
-from diameter_telecom import DiameterMessage, Subscriber
+from diameter_telecom import Subscriber
 from diameter_telecom.diameter.session import *
 from .session_manager import SessionManager
+from .diameter_message import DiameterMessagePcap
 #
 from ._parse_functions import *
 from .csv_file import CsvFile
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def write_to_csv(csv_file: CsvFile,
-                 diameter_message: DiameterMessage,
+                 diameter_message: DiameterMessagePcap,
                  ):
         try:
             row = {}
@@ -38,7 +39,7 @@ def write_to_csv(csv_file: CsvFile,
             pass
         
 
-def parse_diameter_message(diameter_message: DiameterMessage,
+def parse_diameter_message(diameter_message: DiameterMessagePcap,
                              session_manager: SessionManager,
                              create_subscribers: bool = True,
                              csv_file: CsvFile = None,
@@ -112,12 +113,6 @@ def parse_diameter_message(diameter_message: DiameterMessage,
                     sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
 
                 gx_session = GxSession(session_id=session_id, subscriber=subscriber, framed_ip_address=framed_ip_address, framed_ipv6_prefix=framed_ipv6_prefix, called_station_id=called_station_id, sgsn_mcc_mnc=sgsn_mcc_mnc)
-                # gx_session.set_subscriber(subscriber)
-                # if hasattr(diameter_message.message, 'sgsn_mcc_mnc'):
-                #     gx_session.sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
-                # gx_session.framed_ipv6_prefix = framed_ipv6_prefix
-                # gx_session.framed_ip_address = framed_ip_address
-                # gx_session.called_station_id = called_station_id
                 session_manager.add_gx_session(gx_session)
             else:
                 # It's CCR_U or CCR_T - GxSession should have been retrieved earlier by session_id
@@ -129,8 +124,18 @@ def parse_diameter_message(diameter_message: DiameterMessage,
             diameter_message.subscriber = gx_session.subscriber
             diameter_message.framed_ip_address = gx_session.framed_ip_address
             diameter_message.framed_ipv6_prefix = gx_session.framed_ipv6_prefix
+            if hasattr(diameter_message.message, 'sgsn_mcc_mnc'):
+                diameter_message.sgsn_mcc_mnc = diameter_message.message.sgsn_mcc_mnc
+            else:
+                diameter_message.sgsn_mcc_mnc = gx_session.sgsn_mcc_mnc
+
             diameter_message.sgsn_mcc_mnc = gx_session.sgsn_mcc_mnc
             diameter_message.called_station_id = gx_session.called_station_id
+            if hasattr(diameter_message.message, 'usage_monitoring_information') and diameter_message.message.usage_monitoring_information:
+                gsu_usu = parse_usage_monitoring_information(diameter_message.message.usage_monitoring_information)
+                diameter_message.granted_service_unit = gsu_usu.get('granted_service_unit', None)
+                diameter_message.used_service_unit = gsu_usu.get('used_service_unit', None)
+                # diameter_message.umi = parse_usage_monitoring_information(diameter_message.message.usage_monitoring_information)
             # Finally, add the message to the GxSession
             gx_session.add_message(diameter_message)
             session_manager.add_gx_session(gx_session)
