@@ -118,11 +118,13 @@ class Pcap:
                 self.cut_short = True
                 # Attempt to process the output if available
                 output = e.output.decode().strip().split('\n')
-                if not output:
-                    return
             else:
                 print(f"Error getting timestamps from {self.filepath}: {e}")
+                output = None
                 pass
+        if not output:
+            print(f"No valid timestamps found in {self.filepath}")
+            return
         pkt_timestamps = []
         for i in output:
             if re.match(r'^\d+\.\d+$', i):
