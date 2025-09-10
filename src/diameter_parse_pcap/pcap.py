@@ -120,8 +120,7 @@ class Pcap:
                 output = e.output.decode().strip().split('\n')
             else:
                 print(f"Error getting timestamps from {self.filepath}: {e}")
-                output = None
-                pass
+                output = e.output.decode().strip().split('\n')
         if not output:
             print(f"No valid timestamps found in {self.filepath}")
             return
