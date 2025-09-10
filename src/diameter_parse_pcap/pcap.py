@@ -2,23 +2,23 @@ import os
 import subprocess
 from datetime import datetime
 import re
-from typing import List
+from typing import List, Optional
+from dataclasses import dataclass, field
 from .diameter_message import DiameterMessagePcap
 from diameter.message import Message
 
+@dataclass
 class Pcap:
-
-    def __init__(self, filepath, ports: list = [], sctp=False, filter='diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280'):
-        self.filepath = filepath
-        self.ports = ports
-        self.sctp = sctp
-        self.filter = filter
-        self.start_timestamp = None
-        self.end_timestamp = None
-        self.n_diameter_messages = 0
-        self.pid_file = None
-        self.cut_short = False
-        self._pyshark_obj = None
+    filepath: str
+    ports: List[int] = field(default_factory=list)
+    sctp: bool = False
+    filter: str = 'diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280'
+    start_timestamp: Optional[float] = None
+    end_timestamp: Optional[float] = None
+    n_diameter_messages: int = 0
+    pid_file: Optional[str] = None
+    cut_short: bool = False
+    _pyshark_obj: Optional[object] = field(default=None, init=False, repr=False)
 
     @property
     def pyshark_obj(self):
@@ -35,10 +35,6 @@ class Pcap:
     
     def __hash__(self):
         return hash(self.filepath)
-
-
-    def __repr__(self):
-        return f"Pcap(filepath={self.filepath}, start_date={self.start_date}, end_date={self.end_date}, n_diameter_messages={self.n_diameter_messages})"
     
     def to_dict(self):
         pcap_dict = dict()
