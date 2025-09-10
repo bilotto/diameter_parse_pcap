@@ -121,7 +121,8 @@ class Pcap:
                 if not output:
                     return
             else:
-                raise e
+                print(f"Error getting timestamps from {self.filepath}: {e}")
+                pass
         pkt_timestamps = []
         for i in output:
             if re.match(r'^\d+\.\d+$', i):
