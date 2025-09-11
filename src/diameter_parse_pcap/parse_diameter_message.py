@@ -6,7 +6,8 @@ from diameter_telecom.diameter.constants import *
 from diameter_telecom.diameter.parse_avp import *
 from diameter_telecom import Subscriber
 from diameter_telecom.diameter.session import *
-from .session_manager import SessionManager
+# from .session_manager import SessionManager
+from diameter_telecom.diameter.session_manager import SessionManager
 from .diameter_message import DiameterMessagePcap
 #
 from ._parse_functions import *

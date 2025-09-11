@@ -1,9 +1,7 @@
 from .pcap import Pcap
 from .functions import *
-from .parse_diameter_message import parse_diameter_message
 from .csv_file import CsvFile
-from .session_manager import SessionManager
-from .diameter_messages import DiameterMessages
+from .pcap_group import PcapGroup
 
 __all__ = ['Pcap',
            'read_pcap_json',
@@ -11,8 +9,6 @@ __all__ = ['Pcap',
         #    'create_pyshark_object',
            'get_diameter_messages_from_pcap',
            'get_diameter_messages_from_pkt',
-           'parse_diameter_message',
            'CsvFile',
-           'SessionManager',
-           'DiameterMessages'
+           'PcapGroup',
            ]
