@@ -138,7 +138,7 @@ pcap_group = PcapGroup(
     directory="/data/pcaps",
     name_pattern=r".*claro.*\.pcap.*",  # Regex pattern
     ports=[31012, 31117],
-    filter_str="diameter"
+    filter="diameter"
 )
 
 # Load and process all matching PCAPs
@@ -217,7 +217,7 @@ pcap_group = PcapGroup(
     directory="/data/pcaps",
     name_pattern=r".*volte.*\.pcap.*",  # Regex for filename matching
     ports=[3868, 3869],
-    filter_str="diameter && diameter.cmd.code == 272",  # Only CCR messages
+    filter="diameter && diameter.cmd.code == 272",  # Only CCR messages
     sctp=False,
     recursive=True  # Search subdirectories
 )
@@ -351,7 +351,7 @@ The library includes comprehensive examples in the `examples/` directory:
 - `to_dict()` → dict
 
 #### PcapGroup
-- `__init__(directory, name_pattern, ports, filter_str, ...)`
+- `__init__(directory, name_pattern, ports, filter, ...)`
 - `load_pcaps()` → None
 - `process_all_pcaps(message_handler=None)` → List
 - `get_pcaps_by_time_range(start, end)` → List[Pcap]
