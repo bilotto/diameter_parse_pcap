@@ -18,13 +18,17 @@ class Pcap:
     ports: List[int] = field(default_factory=list)
     sctp: bool = False
     filter: str = 'diameter'
-    start_timestamp: Optional[float] = None
-    end_timestamp: Optional[float] = None
-    n_diameter_messages: int = 0
-    pid_file: Optional[str] = None
-    cut_short: bool = False
+    start_timestamp: Optional[float] = field(default=None, repr=False)
+    end_timestamp: Optional[float] = field(default=None, repr=False)
+    n_diameter_packets: int = 0  # NOTE: This is the count of PACKETS, not individual diameter messages
+    pid_file: Optional[str] = field(default=None, repr=False)
+    cut_short: bool = field(default=False, repr=False)
     _auto_discovered_ports: Optional[List[int]] = field(default=None, init=False, repr=False)
     # _pyshark_obj: Optional[object] = field(default=None, init=False, repr=False)
+
+    def __setattr__(self, name, value):
+        # Remove automatic date setting since start_date and end_date are now read-only properties
+        super().__setattr__(name, value)
     
     def __post_init__(self):
         """
@@ -95,8 +99,8 @@ class Pcap:
             pcap_dict['start_timestamp'] = self.start_timestamp
         if self.end_timestamp:
             pcap_dict['end_timestamp'] = self.end_timestamp
-        if self.n_diameter_messages:
-            pcap_dict['n_diameter_messages'] = self.n_diameter_messages
+        if self.n_diameter_packets:
+            pcap_dict['n_diameter_packets'] = self.n_diameter_packets
         if self.cut_short:
             pcap_dict['cut_short'] = self.cut_short
         if self.filter:
@@ -116,14 +120,18 @@ class Pcap:
         return os.path.dirname(self.filepath)
     
     @property
-    def start_date(self) -> datetime:
+    def start_date(self) -> Optional[datetime]:
+        """Get start date computed from start_timestamp."""
         if self.start_timestamp:
             return datetime.fromtimestamp(float(self.start_timestamp))
+        return None
     
     @property
-    def end_date(self) -> datetime:
+    def end_date(self) -> Optional[datetime]:
+        """Get end date computed from end_timestamp."""
         if self.end_timestamp:
             return datetime.fromtimestamp(float(self.end_timestamp))
+        return None
 
     @property
     def decode_as(self):
@@ -171,6 +179,13 @@ class Pcap:
         return f"sudo tcpdump -i {interface} port {','.join(map(str, self.ports))} -w {self.filepath} &"
 
     def get_timestamps(self):
+        """
+        Extract timestamps and count diameter packets (not messages).
+        
+        NOTE: This counts PACKETS containing diameter data, not individual diameter messages.
+        Some packets may contain multiple diameter messages (duplicate_layers), so the actual
+        message count during processing may be higher than n_diameter_packets.
+        """
         print(f"Getting timestamps from {self.filepath} with filter '{self.filter}'")
         command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch"
         try:
@@ -198,45 +213,45 @@ class Pcap:
             return
         self.start_timestamp = pkt_timestamps[0]
         self.end_timestamp = pkt_timestamps[-1]
-        self.n_diameter_messages = len(pkt_timestamps)
+        self.n_diameter_packets = len(pkt_timestamps)  # Count of diameter packets (not individual messages)
     
-    def get_timestamps_with_ports(self):
-        """
-        Extract timestamps along with source and destination ports from PCAP.
-        Returns list of tuples: (timestamp, src_port, dst_port)
+    # def get_timestamps_with_ports(self):
+    #     """
+    #     Extract timestamps along with source and destination ports from PCAP.
+    #     Returns list of tuples: (timestamp, src_port, dst_port)
         
-        This method uses the correct tshark field names for port extraction.
-        """
-        print(f"Getting timestamps and ports from {self.filepath} with filter '{self.filter}'")
-        port_fields = self.get_port_fields()
-        command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch -e {port_fields.replace(',', ' -e ')}"
+    #     This method uses the correct tshark field names for port extraction.
+    #     """
+    #     print(f"Getting timestamps and ports from {self.filepath} with filter '{self.filter}'")
+    #     port_fields = self.get_port_fields()
+    #     command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch -e {port_fields.replace(',', ' -e ')}"
         
-        try:
-            output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
-            if not output:
-                return []
-        except subprocess.CalledProcessError as e:
-            if "appears to have been cut short" in e.output.decode():
-                print(f"File {self.filepath} appears to have been cut short. Attempting to process partial data...")
-                output = e.output.decode().strip().split('\n')
-            else:
-                print(f"Error getting timestamps and ports from {self.filepath}: {e}")
-                return []
+    #     try:
+    #         output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
+    #         if not output:
+    #             return []
+    #     except subprocess.CalledProcessError as e:
+    #         if "appears to have been cut short" in e.output.decode():
+    #             print(f"File {self.filepath} appears to have been cut short. Attempting to process partial data...")
+    #             output = e.output.decode().strip().split('\n')
+    #         else:
+    #             print(f"Error getting timestamps and ports from {self.filepath}: {e}")
+    #             return []
                 
-        results = []
-        for line in output:
-            if line.strip():
-                parts = line.split('\t')
-                if len(parts) >= 3:
-                    try:
-                        timestamp = float(parts[0])
-                        src_port = int(parts[1]) if parts[1] else None
-                        dst_port = int(parts[2]) if parts[2] else None
-                        results.append((timestamp, src_port, dst_port))
-                    except (ValueError, IndexError):
-                        continue
+    #     results = []
+    #     for line in output:
+    #         if line.strip():
+    #             parts = line.split('\t')
+    #             if len(parts) >= 3:
+    #                 try:
+    #                     timestamp = float(parts[0])
+    #                     src_port = int(parts[1]) if parts[1] else None
+    #                     dst_port = int(parts[2]) if parts[2] else None
+    #                     results.append((timestamp, src_port, dst_port))
+    #                 except (ValueError, IndexError):
+    #                     continue
         
-        return results
+    #     return results
     
     def to_json(self) -> dict:
         """Convert Pcap object to JSON-serializable dictionary."""
@@ -244,7 +259,7 @@ class Pcap:
             'filepath': self.filepath,
             'start_timestamp': self.start_timestamp,
             'end_timestamp': self.end_timestamp,
-            'n_diameter_messages': self.n_diameter_messages,
+            'n_diameter_packets': self.n_diameter_packets,
             'ports': self.ports
         }
 

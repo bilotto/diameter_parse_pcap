@@ -1,4 +1,6 @@
 import pyshark
+import asyncio
+import threading
 # from diameter_telecom import DiameterMessage
 from .diameter_message import DiameterMessagePcap
 from diameter.message import Message
@@ -6,6 +8,15 @@ from .pcap import Pcap
 from typing import List
 
 def create_pyshark_object(pcap_file: Pcap):
+    """Create pyshark object with proper event loop handling for threading"""
+    # Ensure there's an event loop in the current thread
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # No event loop in current thread - create one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
 
 def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
@@ -35,7 +46,7 @@ def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
 
 def get_diameter_messages_from_pcap(pcap: Pcap) -> List[DiameterMessagePcap]:
     pcap_diameter_messages = []
-    for pkt in pcap.pyshark_obj:
+    for pkt in create_pyshark_object(pcap):
         pkt_timestamp = pkt.frame_info.time_epoch
         pkt_number = pkt.number
         pkt_diameter_messages = get_diameter_messages_from_pkt(pkt)
