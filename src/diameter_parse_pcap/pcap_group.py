@@ -47,8 +47,7 @@ class PcapGroup:
     sctp: bool = False
     recursive: bool = False
     max_workers: Optional[int] = None
-    csv_file: Optional[str] = None
-    csv_columns: List[str] = field(default_factory=lambda: CSV_COLUMNS.copy())
+    csv_file: Optional[CsvFile] = None
     _pcaps: List[Pcap] = field(default_factory=list, init=False, repr=True)
     session_manager: SessionManager = field(default_factory=SessionManager, init=False, repr=False)
     start_date: datetime = None
@@ -68,10 +67,10 @@ class PcapGroup:
         except re.error as e:
             raise ValueError(f"Invalid regex pattern '{self.name_pattern}': {e}")
         
-        # Configure CSV logging if csv_file provided
+        # Pass CSV file to session manager if provided
         if self.csv_file:
-            self.logger.info(f"📝 Configuring CSV logging: {self.csv_file}")
-            self.configure_csv_logging(self.csv_file)
+            self.logger.info(f"📝 Configuring CSV logging: {self.csv_file.filename}")
+            self.session_manager.csv_file = self.csv_file
         
         # Simple cache logic: if cache exists, load it; otherwise process and save
         cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
@@ -86,28 +85,6 @@ class PcapGroup:
     def set_session_manager(self, session_manager: SessionManager):
         self.session_manager = session_manager
     
-    def configure_csv_logging(self, csv_filename: str, replace_existing: bool = True):
-        """
-        Configure automatic CSV logging for all processed diameter messages.
-        
-        When configured, every message processed through the session manager
-        will be automatically written to the CSV file.
-        
-        Args:
-            csv_filename: Path to the CSV file
-            replace_existing: Whether to replace existing file or append to it
-        """
-        csv_file_obj = CsvFile(csv_filename, csv_columns=self.csv_columns, replace_existing=replace_existing)
-        self.session_manager.configure_csv_logging(csv_file_obj)
-        self.logger.info(f"✅ CSV logging configured:")
-        self.logger.info(f"   📄 File: {csv_filename}")
-        self.logger.info(f"   🔄 Replace existing: {replace_existing}")
-        self.logger.info(f"   📊 Columns: {len(self.csv_columns)} ({', '.join(self.csv_columns[:5])}{'...' if len(self.csv_columns) > 5 else ''})")
-    
-    def disable_csv_logging(self):
-        """Disable automatic CSV logging."""
-        self.session_manager.disable_csv_logging()
-        self.logger.info("Disabled automatic CSV logging")
     
     def _load_cache(self, cache_file: str) -> None:
         """Load PCAP objects from cache file."""
@@ -592,3 +569,7 @@ class PcapGroup:
     def __iter__(self):
         """Allow iteration over PCAP objects."""
         return iter(self._pcaps)
+
+    def to_json(self) -> str:
+        # Return all pcaps json
+        return [pcap.to_json() for pcap in self.pcaps]

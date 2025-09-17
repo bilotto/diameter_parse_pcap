@@ -37,7 +37,7 @@ def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
             if not isinstance(payload_hex, str):
                 continue
             diameter_bytes = bytes.fromhex(i.value)
-            diameter_message = DiameterMessagePcap(Message.from_bytes(diameter_bytes))
+            diameter_message = DiameterMessagePcap(diameter_bytes)
             diameter_message.timestamp = pkt.frame_info.time_epoch
             diameter_message.pkt_number = pkt.number
             pkt_diameter_messages.append(diameter_message)
