@@ -1,11 +1,4 @@
-# Core dependencies for diameter_parse_pcap
-# Base Diameter protocol library
-diameter>=1.0.0
-
-# Telecom-specific Diameter extensions
 diameter_telecom>=1.0.0
-
-# PCAP processing and network analysis
 pyshark>=0.6.0
 
 # Standard library dependencies (included with Python)
