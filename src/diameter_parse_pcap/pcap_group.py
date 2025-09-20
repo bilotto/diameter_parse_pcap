@@ -14,34 +14,46 @@ from .pcap import Pcap
 from diameter_telecom.diameter.session_manager import SessionManager
 from diameter_telecom.csv_file import CsvFile, CSV_COLUMNS
 from .pyshark import get_diameter_messages_from_pkt, create_pyshark_object
+import subprocess
+
+
+fields = ["frame.time_epoch", ]
+
+def get_pcap_info(pcap: Pcap):
+    command = f"tshark -r {pcap.filepath} {pcap.get_ports()} -Y \"{pcap.filter}\" -T fields -e frame.time_epoch"
+    print(command)
+    try:
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
+        if not output:
+            return
+    except subprocess.CalledProcessError as e:
+        if "appears to have been cut short" in e.output.decode():
+            print(f"File {pcap.filepath} appears to have been cut short. Skipping...")
+            pcap.cut_short = True
+            # Attempt to process the output if available
+            output = e.output.decode().strip().split('\n')
+        else:
+            print(f"Error getting timestamps from {pcap.filepath}: {e}")
+            output = e.output.decode().strip().split('\n')
+    if not output:
+        print(f"No valid timestamps found in {pcap.filepath}")
+        return
+    pkt_timestamps = []
+    for i in output:
+        if re.match(r'^\d+\.\d+$', i):
+            pkt_timestamps.append(float(i))
+    if not pkt_timestamps:
+        print(f"No valid timestamps found in {pcap.filepath}")
+        return
+    pcap.start_timestamp = pkt_timestamps[0]
+    pcap.end_timestamp = pkt_timestamps[-1]
+    pcap.n_diameter_packets = len(pkt_timestamps)  # Count of diameter packets (not individual messages)
+
 
 @dataclass
 class PcapGroup:
-    """
-    A class to manage a group of PCAP files in a directory with regex name filtering.
-    
-    This class provides functionality to:
-    - Find PCAP files in a directory using regex patterns
-    - Sort PCAPs by timestamp
-    - Process multiple PCAPs in parallel with consistent configuration
-    - Extract and process diameter messages through session manager
-    - Automatic CSV export of all processed diameter messages
-    
-    Architecture:
-    - Session manager is mandatory for all message processing
-    - All diameter messages are processed through the thread-safe session manager
-    - Supports automatic caching of PCAP metadata for fast loading
-    - Parallel processing of both PCAP loading and message extraction
-    - Optional automatic CSV logging for telecom analytics and debugging
-    
-    CSV Integration:
-    - Provide csv_file parameter to enable automatic CSV export
-    - All diameter messages are automatically written to CSV during processing
-    - Configurable CSV columns with telecom-specific default schema
-    - Thread-safe CSV operations for parallel processing
-    """
     directory: str
-    name_pattern: str
+    name_pattern: str = field(default_factory=lambda: ".*\\.pcap")
     ports: List[int] = field(default_factory=lambda: [])
     filter: str = "diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280"
     sctp: bool = False
@@ -66,6 +78,8 @@ class PcapGroup:
             re.compile(self.name_pattern)
         except re.error as e:
             raise ValueError(f"Invalid regex pattern '{self.name_pattern}': {e}")
+
+        self.session_manager.clear_sessions_after_termination = False
         
         # Pass CSV file to session manager if provided
         if self.csv_file:
@@ -83,6 +97,7 @@ class PcapGroup:
             self._save_cache(cache_file)
 
     def set_session_manager(self, session_manager: SessionManager):
+        session_manager.clear_sessions_after_termination = False
         self.session_manager = session_manager
     
     
@@ -349,7 +364,6 @@ class PcapGroup:
         finally:
             # Restore original thread name
             threading.current_thread().name = original_thread_name
-    
     
     def process_all_pcaps(self,start_time: datetime = None, end_time: datetime = None):
         """
