@@ -11,6 +11,10 @@ import json
 # Import the focused port discovery service
 from .port_discovery import DiameterPortDiscovery, DiameterPortConstants
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Pcap:
@@ -18,8 +22,8 @@ class Pcap:
     ports: List[int] = field(default_factory=list)
     sctp: bool = False
     filter: str = 'diameter'
-    start_timestamp: Optional[float] = field(default=None, repr=False)
-    end_timestamp: Optional[float] = field(default=None, repr=False)
+    start_timestamp: Optional[float] = field(default=None, repr=True)
+    end_timestamp: Optional[float] = field(default=None, repr=True)
     n_diameter_packets: int = 0  # NOTE: This is the count of PACKETS, not individual diameter messages
     pid_file: Optional[str] = field(default=None, repr=False)
     cut_short: bool = field(default=False, repr=False)
@@ -186,15 +190,16 @@ class Pcap:
         Some packets may contain multiple diameter messages (duplicate_layers), so the actual
         message count during processing may be higher than n_diameter_packets.
         """
-        print(f"Getting timestamps from {self.filepath} with filter '{self.filter}'")
-        command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch"
+        logger.debug(f"Getting timestamps from {self.filepath} with filter '{self.filter}'")
+        command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch -e {self.get_port_fields().replace(',', ' -e ')}"
+        logger.debug(f"Command: {command}")
         try:
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
             if not output:
                 return
         except subprocess.CalledProcessError as e:
             if "appears to have been cut short" in e.output.decode():
-                print(f"File {self.filepath} appears to have been cut short. Skipping...")
+                logger.debug(f"File {self.filepath} appears to have been cut short. Skipping...")
                 self.cut_short = True
                 # Attempt to process the output if available
                 output = e.output.decode().strip().split('\n')
@@ -204,16 +209,34 @@ class Pcap:
         if not output:
             print(f"No valid timestamps found in {self.filepath}")
             return
+        results = []
+        for line in output:
+            if line.strip():
+                parts = line.split('\t')
+                if len(parts) >= 3:
+                    try:
+                        timestamp = float(parts[0])
+                        src_port = int(parts[1]) if parts[1] else None
+                        dst_port = int(parts[2]) if parts[2] else None
+                        results.append((timestamp, src_port, dst_port))
+                    except (ValueError, IndexError):
+                        continue
+
         pkt_timestamps = []
-        for i in output:
-            if re.match(r'^\d+\.\d+$', i):
-                pkt_timestamps.append(float(i))
+        src_ports = []
+        dst_ports = []
+        for i in results:
+            pkt_timestamps.append(i[0])
+            src_ports.append(i[1])
+            dst_ports.append(i[2])
         if not pkt_timestamps:
             print(f"No valid timestamps found in {self.filepath}")
             return
         self.start_timestamp = pkt_timestamps[0]
         self.end_timestamp = pkt_timestamps[-1]
         self.n_diameter_packets = len(pkt_timestamps)  # Count of diameter packets (not individual messages)
+        self.ports = list(set(src_ports + dst_ports))
+
     
     # def get_timestamps_with_ports(self):
     #     """

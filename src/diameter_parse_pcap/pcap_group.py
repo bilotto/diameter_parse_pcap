@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .pcap import Pcap
 # from .functions import get_diameter_messages_from_pkt
 # import pyshark
-from diameter_telecom.diameter.session_manager import SessionManager
+from diameter_telecom import SessionManager
 from diameter_telecom.csv_file import CsvFile, CSV_COLUMNS
 from .pyshark import get_diameter_messages_from_pkt, create_pyshark_object
 
