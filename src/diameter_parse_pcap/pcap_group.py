@@ -17,31 +17,8 @@ from .pyshark import get_diameter_messages_from_pkt, create_pyshark_object
 
 @dataclass
 class PcapGroup:
-    """
-    A class to manage a group of PCAP files in a directory with regex name filtering.
-    
-    This class provides functionality to:
-    - Find PCAP files in a directory using regex patterns
-    - Sort PCAPs by timestamp
-    - Process multiple PCAPs in parallel with consistent configuration
-    - Extract and process diameter messages through session manager
-    - Automatic CSV export of all processed diameter messages
-    
-    Architecture:
-    - Session manager is mandatory for all message processing
-    - All diameter messages are processed through the thread-safe session manager
-    - Supports automatic caching of PCAP metadata for fast loading
-    - Parallel processing of both PCAP loading and message extraction
-    - Optional automatic CSV logging for telecom analytics and debugging
-    
-    CSV Integration:
-    - Provide csv_file parameter to enable automatic CSV export
-    - All diameter messages are automatically written to CSV during processing
-    - Configurable CSV columns with telecom-specific default schema
-    - Thread-safe CSV operations for parallel processing
-    """
     directory: str
-    name_pattern: str
+    name_pattern: str = ".*\\.pcap"
     ports: List[int] = field(default_factory=lambda: [])
     filter: str = "diameter && diameter.cmd.code != 257 && diameter.cmd.code != 280"
     sctp: bool = False
@@ -411,7 +388,7 @@ class PcapGroup:
             self.logger.warning(f"   ❌ Failed files: {failed_files}")
         
         # Session manager statistics
-        total_sessions = sum(len(app_sessions) for app_sessions in self.session_manager.sessions.sessions.values())
+        total_sessions = self.session_manager.sessions.n_sessions
         self.logger.info(f"   📈 Session statistics:")
         self.logger.info(f"      🔗 Total sessions: {total_sessions}")
         self.logger.info(f"      👥 Total subscribers: {len(self.session_manager.subscribers.subscribers)}")

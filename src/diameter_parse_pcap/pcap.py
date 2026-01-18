@@ -24,11 +24,11 @@ class Pcap:
     filter: str = 'diameter'
     start_timestamp: Optional[float] = field(default=None, repr=True)
     end_timestamp: Optional[float] = field(default=None, repr=True)
+    n_packets: int = 0 # NOTE: This is the count of PACKETS, not individual diameter messages
     n_diameter_packets: int = 0  # NOTE: This is the count of PACKETS, not individual diameter messages
     pid_file: Optional[str] = field(default=None, repr=False)
     cut_short: bool = field(default=False, repr=False)
     _auto_discovered_ports: Optional[List[int]] = field(default=None, init=False, repr=False)
-    # _pyshark_obj: Optional[object] = field(default=None, init=False, repr=False)
 
     def __setattr__(self, name, value):
         # Remove automatic date setting since start_date and end_date are now read-only properties
@@ -47,7 +47,8 @@ class Pcap:
             print(f"🤖 No ports specified for {self.filename}, analyzing traffic patterns...")
             try:
                 discovery_service = DiameterPortDiscovery(self.filepath, self.sctp)
-                discovered_ports, start_time, end_time = discovery_service.discover_ports()
+                discovered_ports, start_time, end_time, n_packets = discovery_service.discover_ports()
+                self.n_packets = n_packets
                 
                 if discovered_ports:
                     self.ports = discovered_ports
@@ -72,6 +73,9 @@ class Pcap:
             except Exception as e:
                 print(f"⚠️  Traffic analysis failed: {e}")
                 self.ports = []
+
+        if not self.start_timestamp or not self.end_timestamp:
+            self.get_timestamps()
                 
     @property
     def is_ports_auto_discovered(self) -> bool:
@@ -235,7 +239,10 @@ class Pcap:
         self.start_timestamp = pkt_timestamps[0]
         self.end_timestamp = pkt_timestamps[-1]
         self.n_diameter_packets = len(pkt_timestamps)  # Count of diameter packets (not individual messages)
+        print(f"Ports before: {self.ports}")
         self.ports = list(set(src_ports + dst_ports))
+        print(f"Ports after: {self.ports}")
+
 
     
     # def get_timestamps_with_ports(self):

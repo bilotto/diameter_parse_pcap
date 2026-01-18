@@ -54,6 +54,7 @@ class DiameterPortDiscovery:
         print(f"📊 Analyzing traffic patterns in {self.filename}...")
         
         protocol = "sctp" if self.sctp else "tcp"
+        n_packets = 0
         
         # Get all traffic with timestamps, src ports, and dst ports
         command = (f'tshark -r "{self.pcap_filepath}" -T fields '
@@ -65,7 +66,7 @@ class DiameterPortDiscovery:
             
             if not output.strip():
                 print("❌ No TCP/SCTP traffic found in PCAP")
-                return [], 0.0, 0.0
+                return [], 0.0, 0.0, 0
                 
             # Parse the output
             port_counter = Counter()
@@ -89,13 +90,14 @@ class DiameterPortDiscovery:
                             port_counter[int(src_port)] += 1
                         if dst_port and dst_port.isdigit():
                             port_counter[int(dst_port)] += 1
-                            
+
+                        n_packets += 1
                     except ValueError:
                         continue
             
             if not port_counter:
                 print("❌ No valid ports found in traffic")
-                return [], 0.0, 0.0
+                return [], 0.0, 0.0, 0
             
             # Get the most active ports (top 5)
             most_active = [port for port, count in port_counter.most_common(5)]
@@ -109,11 +111,11 @@ class DiameterPortDiscovery:
                 count = port_counter[port]
                 print(f"   📡 Port {port}: {count} packets")
             
-            return most_active, start_time, end_time
+            return most_active, start_time, end_time, n_packets
             
         except subprocess.CalledProcessError as e:
             print(f"⚠️  Error analyzing traffic: {e}")
-            return [], 0.0, 0.0
+            return [], 0.0, 0.0, 0
     
     def get_port_descriptions(self, ports: List[int]) -> Dict[int, str]:
         """Get descriptions for ports."""

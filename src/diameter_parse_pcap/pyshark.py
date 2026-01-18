@@ -6,6 +6,11 @@ from .diameter_message import DiameterMessagePcap
 from diameter.message import Message
 from .pcap import Pcap
 from typing import List
+from datetime import datetime
+
+def convert_timestamp(timestamp: str) -> str:
+    return datetime.datetime.fromtimestamp(float(timestamp), tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+
 
 def create_pyshark_object(pcap_file: Pcap):
     """Create pyshark object with proper event loop handling for threading"""
@@ -21,6 +26,8 @@ def create_pyshark_object(pcap_file: Pcap):
 
 def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
     pkt_diameter_messages = []
+    if not hasattr(pkt, 'diameter_raw'):
+        return pkt_diameter_messages
     if isinstance(pkt.diameter_raw.value, list):
         payload_hex = pkt.diameter_raw.value[0]
     else:
