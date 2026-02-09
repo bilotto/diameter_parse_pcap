@@ -1,20 +1,17 @@
 import os
 import subprocess
 from datetime import datetime
-import re
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple, Set, Dict
 from dataclasses import dataclass, field
-from .diameter_message import DiameterMessagePcap
-from diameter.message import Message
+# from .diameter_message import DiameterMessagePcap
+# from diameter.message import Message
 import json
 
 # Import the focused port discovery service
-from .port_discovery import DiameterPortDiscovery, DiameterPortConstants
+# from .port_discovery import DiameterPortConstants
+from .pcap_operations import get_timestamps_and_packet_count
 
-import logging
-
-logger = logging.getLogger(__name__)
-
+from diameter_telecom.message import DiameterMessage
 
 @dataclass
 class Pcap:
@@ -24,11 +21,13 @@ class Pcap:
     filter: str = 'diameter'
     start_timestamp: Optional[float] = field(default=None, repr=True)
     end_timestamp: Optional[float] = field(default=None, repr=True)
-    n_packets: int = 0 # NOTE: This is the count of PACKETS, not individual diameter messages
     n_diameter_packets: int = 0  # NOTE: This is the count of PACKETS, not individual diameter messages
+    n_diameter_messages: int = 0
     pid_file: Optional[str] = field(default=None, repr=False)
     cut_short: bool = field(default=False, repr=False)
     _auto_discovered_ports: Optional[List[int]] = field(default=None, init=False, repr=False)
+    _pyshark_obj: Optional[object] = field(default=None, init=False, repr=False)
+    diameter_packets: Dict[Tuple[float, int], List[DiameterMessage]] = field(default_factory=dict)
 
     def __setattr__(self, name, value):
         # Remove automatic date setting since start_date and end_date are now read-only properties
@@ -36,46 +35,11 @@ class Pcap:
     
     def __post_init__(self):
         """
-        Post-initialization processing for intelligent port discovery.
+        Post-initialization processing - validates file exists.
         """
-        # Validate file exists first
+        # Validate file exists
         if not os.path.exists(self.filepath):
             raise FileNotFoundError(f"PCAP file not found: {self.filepath}")
-            
-        # Auto-discover ports if none provided
-        if not self.ports:
-            print(f"🤖 No ports specified for {self.filename}, analyzing traffic patterns...")
-            try:
-                discovery_service = DiameterPortDiscovery(self.filepath, self.sctp)
-                discovered_ports, start_time, end_time, n_packets = discovery_service.discover_ports()
-                self.n_packets = n_packets
-                
-                if discovered_ports:
-                    self.ports = discovered_ports
-                    self._auto_discovered_ports = self.ports.copy()
-                    
-                    # Set timestamps from discovery
-                    if start_time and end_time:
-                        self.start_timestamp = start_time
-                        self.end_timestamp = end_time
-                        duration = end_time - start_time
-                        print(f"⏱️  PCAP duration: {duration:.1f} seconds")
-                    
-                    # Show discovered ports with descriptions
-                    descriptions = discovery_service.get_port_descriptions(self.ports)
-                    for port, desc in descriptions.items():
-                        print(f"   📡 Port {port}: {desc}")
-                        
-                else:
-                    print("❌ No active ports found in PCAP")
-                    self.ports = []
-                    
-            except Exception as e:
-                print(f"⚠️  Traffic analysis failed: {e}")
-                self.ports = []
-
-        if not self.start_timestamp or not self.end_timestamp:
-            self.get_timestamps()
                 
     @property
     def is_ports_auto_discovered(self) -> bool:
@@ -194,56 +158,7 @@ class Pcap:
         Some packets may contain multiple diameter messages (duplicate_layers), so the actual
         message count during processing may be higher than n_diameter_packets.
         """
-        logger.debug(f"Getting timestamps from {self.filepath} with filter '{self.filter}'")
-        command = f"tshark -r {self.filepath} {self.get_ports()} -Y \"{self.filter}\" -T fields -e frame.time_epoch -e {self.get_port_fields().replace(',', ' -e ')}"
-        logger.debug(f"Command: {command}")
-        try:
-            output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT).decode().strip().split('\n')
-            if not output:
-                return
-        except subprocess.CalledProcessError as e:
-            if "appears to have been cut short" in e.output.decode():
-                logger.debug(f"File {self.filepath} appears to have been cut short. Skipping...")
-                self.cut_short = True
-                # Attempt to process the output if available
-                output = e.output.decode().strip().split('\n')
-            else:
-                print(f"Error getting timestamps from {self.filepath}: {e}")
-                output = e.output.decode().strip().split('\n')
-        if not output:
-            print(f"No valid timestamps found in {self.filepath}")
-            return
-        results = []
-        for line in output:
-            if line.strip():
-                parts = line.split('\t')
-                if len(parts) >= 3:
-                    try:
-                        timestamp = float(parts[0])
-                        src_port = int(parts[1]) if parts[1] else None
-                        dst_port = int(parts[2]) if parts[2] else None
-                        results.append((timestamp, src_port, dst_port))
-                    except (ValueError, IndexError):
-                        continue
-
-        pkt_timestamps = []
-        src_ports = []
-        dst_ports = []
-        for i in results:
-            pkt_timestamps.append(i[0])
-            src_ports.append(i[1])
-            dst_ports.append(i[2])
-        if not pkt_timestamps:
-            print(f"No valid timestamps found in {self.filepath}")
-            return
-        self.start_timestamp = pkt_timestamps[0]
-        self.end_timestamp = pkt_timestamps[-1]
-        self.n_diameter_packets = len(pkt_timestamps)  # Count of diameter packets (not individual messages)
-        print(f"Ports before: {self.ports}")
-        self.ports = list(set(src_ports + dst_ports))
-        print(f"Ports after: {self.ports}")
-
-
+        get_timestamps_and_packet_count(self)
     
     # def get_timestamps_with_ports(self):
     #     """
@@ -302,6 +217,13 @@ class Pcap:
         except subprocess.CalledProcessError as e:
             print(f"Error calculating md5sum for {filepath}: {e}")
             return None
+
+    def add_diameter_message(self, frame_number: int, diameter_message: DiameterMessage):
+        frame_number = int(frame_number)
+        if not self.diameter_packets.get(frame_number):
+            self.diameter_packets[frame_number] = []
+        self.diameter_packets[frame_number].append(diameter_message)
+        self.n_diameter_messages += 1
 
     # def get_diameter_messages_from_pkt(self, pkt) -> List[DiameterMessagePcap]:
     #     pkt_diameter_messages = []
