@@ -86,14 +86,13 @@ class PcapGroup:
             self.session_manager.csv_file = self.csv_file
         
         # Clear cache if requested
+        cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
         if self.clear_cache:
-            cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
             self.logger.info(f"🧹 Clearing cache: {cache_file}")
             os.remove(cache_file)
             self.logger.info(f"✅ Cache cleared successfully: {cache_file}")
         
         # Simple cache logic: if cache exists, load it; otherwise process and save
-        cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
         if os.path.exists(cache_file):
             self.logger.info(f"💾 Loading PCAP metadata from cache: {cache_file}")
             self._load_cache(cache_file)
@@ -105,10 +104,11 @@ class PcapGroup:
                 self.logger.error("No PCAP files found. Exiting.")
                 sys.exit(1)
             self.logger.info(f"Found {len(pcap_files)} PCAP file(s) to process.")
-            reply = input(f"Proceed with processing {len(pcap_files)} PCAP files? [y/N]: ").strip().lower()
-            if reply not in ("y", "yes"):
-                self.logger.error("Aborted by user. Exiting.")
-                sys.exit(1)
+            if len(pcap_files) > 100:
+                reply = input(f"Found {len(pcap_files)} PCAP file(s) to process. Proceed with processing? [y/N]: ").strip().lower()
+                if reply not in ("y", "yes"):
+                    self.logger.error("Aborted by user. Exiting.")
+                    sys.exit(1)
             self.logger.info(f"Proceeding with processing {len(pcap_files)} PCAP file(s).")
             self._find_and_load_pcaps()
             self._save_cache(cache_file)
