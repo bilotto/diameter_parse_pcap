@@ -71,12 +71,12 @@ def get_timestamps_and_packet_count(pcap) -> None:
             pcap.cut_short = True
             output = error_output.strip().split('\n')
         else:
-            print(f"Error getting timestamps from {pcap.filepath}: {e}")
+            # print(f"Error getting timestamps from {pcap.filepath}: {e}")
             # Don't try to process output if tshark failed - return early
             return
     
     if not output:
-        print(f"No valid timestamps found in {pcap.filepath}")
+        # print(f"No valid timestamps found in {pcap.filepath}")
         return
     
     pkt_timestamps = []
@@ -85,10 +85,17 @@ def get_timestamps_and_packet_count(pcap) -> None:
             pkt_timestamps.append(float(i))
     
     if not pkt_timestamps:
-        print(f"No valid timestamps found in {pcap.filepath}")
+        # print(f"No valid timestamps found in {pcap.filepath}")
         return
 
     # Set the values directly on the pcap object
     pcap.start_timestamp = pkt_timestamps[0]
     pcap.end_timestamp = pkt_timestamps[-1]
     pcap.n_diameter_packets = len(pkt_timestamps)
+
+
+def get_md5sum(pcap_filepath: str) -> str:
+    command = f"md5sum {pcap_filepath}"
+    output = subprocess.check_output(command, shell=True).decode().strip()
+    md5sum = output.split()[0]
+    return md5sum

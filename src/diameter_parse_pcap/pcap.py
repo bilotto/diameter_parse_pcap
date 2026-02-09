@@ -9,7 +9,7 @@ import json
 
 # Import the focused port discovery service
 # from .port_discovery import DiameterPortConstants
-from .pcap_operations import get_timestamps_and_packet_count
+from .pcap_operations import get_timestamps_and_packet_count, get_md5sum
 
 from diameter_telecom.message import DiameterMessage
 
@@ -28,6 +28,8 @@ class Pcap:
     _auto_discovered_ports: Optional[List[int]] = field(default=None, init=False, repr=False)
     _pyshark_obj: Optional[object] = field(default=None, init=False, repr=False)
     diameter_packets: Dict[Tuple[float, int], List[DiameterMessage]] = field(default_factory=dict)
+    md5sum: Optional[str] = field(default=None, repr=True)
+    mtime: Optional[str] = field(default=None, repr=True)
 
     def __setattr__(self, name, value):
         # Remove automatic date setting since start_date and end_date are now read-only properties
@@ -71,12 +73,16 @@ class Pcap:
             pcap_dict['start_timestamp'] = self.start_timestamp
         if self.end_timestamp:
             pcap_dict['end_timestamp'] = self.end_timestamp
-        if self.n_diameter_packets:
+        if self.n_diameter_packets is not None:
             pcap_dict['n_diameter_packets'] = self.n_diameter_packets
         if self.cut_short:
             pcap_dict['cut_short'] = self.cut_short
         if self.filter:
             pcap_dict['filter'] = self.filter
+        if self.md5sum:
+            pcap_dict['md5sum'] = self.md5sum
+        if self.mtime:
+            pcap_dict['mtime'] = self.mtime
         return pcap_dict
 
     @property
@@ -205,18 +211,13 @@ class Pcap:
             'start_timestamp': self.start_timestamp,
             'end_timestamp': self.end_timestamp,
             'n_diameter_packets': self.n_diameter_packets,
-            'ports': self.ports
+            'ports': self.ports,
+            'mtime': self.mtime,
+            'md5sum': self.md5sum,
         }
 
-    def get_md5sum(self, filepath):
-        command = f"md5sum {filepath}"
-        try:
-            output = subprocess.check_output(command, shell=True).decode().strip()
-            md5sum = output.split()[0]
-            return md5sum
-        except subprocess.CalledProcessError as e:
-            print(f"Error calculating md5sum for {filepath}: {e}")
-            return None
+    def get_md5sum(self):
+        self.md5sum = get_md5sum(self.filepath)
 
     def add_diameter_message(self, frame_number: int, diameter_message: DiameterMessage):
         frame_number = int(frame_number)
