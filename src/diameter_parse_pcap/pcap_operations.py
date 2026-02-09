@@ -65,13 +65,15 @@ def get_timestamps_and_packet_count(pcap) -> None:
         if not output:
             return
     except subprocess.CalledProcessError as e:
-        if "appears to have been cut short" in e.output.decode():
+        error_output = e.output.decode() if isinstance(e.output, bytes) else str(e.output)
+        if "appears to have been cut short" in error_output:
             print(f"File {pcap.filepath} appears to have been cut short. Skipping...")
             pcap.cut_short = True
-            output = e.output.decode().strip().split('\n')
+            output = error_output.strip().split('\n')
         else:
             print(f"Error getting timestamps from {pcap.filepath}: {e}")
-            output = e.output.decode().strip().split('\n')
+            # Don't try to process output if tshark failed - return early
+            return
     
     if not output:
         print(f"No valid timestamps found in {pcap.filepath}")
@@ -86,11 +88,7 @@ def get_timestamps_and_packet_count(pcap) -> None:
         print(f"No valid timestamps found in {pcap.filepath}")
         return
 
-    # pcap.start_timestamp = pkt_timestamps[0]
-    # pcap.end_timestamp = pkt_timestamps[-1]
-    # pcap.n_diameter_packets = len(pkt_timestamps)
-    # return pcap
-    start_timestamp = pkt_timestamps[0]
-    end_timestamp = pkt_timestamps[-1]
-    n_diameter_packets = len(pkt_timestamps)
-    return start_timestamp, end_timestamp, n_diameter_packets
+    # Set the values directly on the pcap object
+    pcap.start_timestamp = pkt_timestamps[0]
+    pcap.end_timestamp = pkt_timestamps[-1]
+    pcap.n_diameter_packets = len(pkt_timestamps)

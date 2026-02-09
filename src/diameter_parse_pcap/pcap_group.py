@@ -62,8 +62,7 @@ class PcapGroup:
     csv_file: Optional[CsvFile] = None
     _pcaps: List[Pcap] = field(default_factory=list, init=False, repr=True)
     session_manager: SessionManager = field(default_factory=SessionManager, init=False, repr=False)
-    start_date: datetime = None
-    end_date: datetime = None
+    clear_cache: bool = False
     
     def __post_init__(self):
         """Validate the regex pattern, set defaults, and find PCAP files after dataclass initialization."""
@@ -86,20 +85,37 @@ class PcapGroup:
             self.logger.info(f"📝 Configuring CSV logging: {self.csv_file.filename}")
             self.session_manager.csv_file = self.csv_file
         
+        # Clear cache if requested
+        if self.clear_cache:
+            cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
+            self.logger.info(f"🧹 Clearing cache: {cache_file}")
+            os.remove(cache_file)
+            self.logger.info(f"✅ Cache cleared successfully: {cache_file}")
+        
         # Simple cache logic: if cache exists, load it; otherwise process and save
         cache_file = os.path.join(self.directory, ".pcap_metadata_cache.json")
         if os.path.exists(cache_file):
             self.logger.info(f"💾 Loading PCAP metadata from cache: {cache_file}")
             self._load_cache(cache_file)
         else:
+            import sys
             self.logger.info(f"🔍 No cache found, processing PCAP files...")
+            pcap_files = self.find_pcap_files()
+            if not pcap_files:
+                self.logger.error("No PCAP files found. Exiting.")
+                sys.exit(1)
+            self.logger.info(f"Found {len(pcap_files)} PCAP file(s) to process.")
+            reply = input(f"Proceed with processing {len(pcap_files)} PCAP files? [y/N]: ").strip().lower()
+            if reply not in ("y", "yes"):
+                self.logger.error("Aborted by user. Exiting.")
+                sys.exit(1)
+            self.logger.info(f"Proceeding with processing {len(pcap_files)} PCAP file(s).")
             self._find_and_load_pcaps()
             self._save_cache(cache_file)
 
     def set_session_manager(self, session_manager: SessionManager):
         session_manager.clear_sessions_after_termination = False
         self.session_manager = session_manager
-    
     
     def _load_cache(self, cache_file: str) -> None:
         """Load PCAP objects from cache file."""
