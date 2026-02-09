@@ -1,0 +1,13 @@
+diameter_telecom>=1.0.0
+pyshark>=0.6.0
+
+# Standard library dependencies (included with Python)
+# - os, sys, subprocess, threading, asyncio
+# - datetime, json, logging, re, glob
+# - pathlib, dataclasses, typing, concurrent.futures
+
+# System dependencies (must be installed separately):
+# - tshark (Wireshark command-line tools)
+#   Ubuntu/Debian: sudo apt-get install tshark
+#   macOS: brew install wireshark
+#   Windows: Install Wireshark and ensure tshark is in PATH
