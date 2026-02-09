@@ -591,3 +591,13 @@ class PcapGroup:
     def to_json(self) -> str:
         # Return all pcaps json
         return [pcap.to_json() for pcap in self.pcaps]
+
+
+    def get_pcap_by_path(self, path: str) -> Pcap:
+        """
+        Get a PCAP object by its path.
+        """
+        for pcap in self._pcaps:
+            if pcap.filepath == path:
+                return pcap
+        return None
