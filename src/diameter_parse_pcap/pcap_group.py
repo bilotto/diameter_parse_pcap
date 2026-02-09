@@ -234,7 +234,7 @@ class PcapGroup:
             )
             
             thread_name = threading.current_thread().name
-            pcap_obj.get_timestamps()
+            # pcap_obj.get_timestamps()
             if pcap_obj.n_diameter_packets == 0:
                 self.logger.error(f"[{thread_name}] Skipping {filename}: no diameter messages")
                 return None
