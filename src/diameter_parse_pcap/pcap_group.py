@@ -97,19 +97,7 @@ class PcapGroup:
             self.logger.info(f"💾 Loading PCAP metadata from cache: {cache_file}")
             self._load_cache(cache_file)
         else:
-            import sys
             self.logger.info(f"🔍 No cache found, processing PCAP files...")
-            pcap_files = self.find_pcap_files()
-            if not pcap_files:
-                self.logger.error("No PCAP files found. Exiting.")
-                sys.exit(1)
-            self.logger.info(f"Found {len(pcap_files)} PCAP file(s) to process.")
-            if len(pcap_files) > 100:
-                reply = input(f"Found {len(pcap_files)} PCAP file(s) to process. Proceed with processing? [y/N]: ").strip().lower()
-                if reply not in ("y", "yes"):
-                    self.logger.error("Aborted by user. Exiting.")
-                    sys.exit(1)
-            self.logger.info(f"Proceeding with processing {len(pcap_files)} PCAP file(s).")
             self._find_and_load_pcaps()
             self._save_cache(cache_file)
 
