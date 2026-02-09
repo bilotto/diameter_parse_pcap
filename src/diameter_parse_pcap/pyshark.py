@@ -19,15 +19,42 @@ def create_pyshark_object(pcap_file: Pcap):
     
     return pyshark.FileCapture(pcap_file.filepath, decode_as=pcap_file.decode_as, display_filter=pcap_file.filter, include_raw=True, use_json=True, debug=False)
 
-def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
+# def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
+#     pkt_diameter_messages = []
+#     if isinstance(pkt.diameter_raw.value, list):
+#         payload_hex = pkt.diameter_raw.value[0]
+#     else:
+#         payload_hex = pkt.diameter_raw.value
+#     diameter_message = DiameterMessagePcap(payload_hex)
+#     diameter_message.timestamp = pkt.frame_info.time_epoch
+#     diameter_message.pkt_number = pkt.number
+#     pkt_diameter_messages.append(diameter_message)
+#     if pkt.diameter_raw.duplicate_layers:
+#         for i in pkt.diameter_raw.duplicate_layers:
+#             payload_hex = i.value
+#             if isinstance(payload_hex, list):
+#                 print("payload_hex is list")
+#             if not isinstance(payload_hex, str):
+#                 continue
+#             # diameter_bytes = bytes.fromhex(i.value)
+#             diameter_message = DiameterMessagePcap(payload_hex)
+#             diameter_message.timestamp = pkt.frame_info.time_epoch
+#             diameter_message.pkt_number = pkt.number
+#             pkt_diameter_messages.append(diameter_message)
+
+#     return pkt_diameter_messages
+
+from diameter_telecom.message import DiameterMessage
+
+def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessage]:
     pkt_diameter_messages = []
     if isinstance(pkt.diameter_raw.value, list):
         payload_hex = pkt.diameter_raw.value[0]
     else:
         payload_hex = pkt.diameter_raw.value
-    diameter_message = DiameterMessagePcap(payload_hex)
-    diameter_message.timestamp = pkt.frame_info.time_epoch
-    diameter_message.pkt_number = pkt.number
+    diameter_message = DiameterMessage(payload_hex)
+    # diameter_message.timestamp = pkt.frame_info.time_epoch
+    # diameter_message.pkt_number = pkt.number
     pkt_diameter_messages.append(diameter_message)
     if pkt.diameter_raw.duplicate_layers:
         for i in pkt.diameter_raw.duplicate_layers:
@@ -36,10 +63,10 @@ def get_diameter_messages_from_pkt(pkt) -> List[DiameterMessagePcap]:
                 print("payload_hex is list")
             if not isinstance(payload_hex, str):
                 continue
-            diameter_bytes = bytes.fromhex(i.value)
-            diameter_message = DiameterMessagePcap(diameter_bytes)
-            diameter_message.timestamp = pkt.frame_info.time_epoch
-            diameter_message.pkt_number = pkt.number
+            # diameter_bytes = bytes.fromhex(i.value)
+            diameter_message = DiameterMessage(payload_hex)
+            # diameter_message.timestamp = pkt.frame_info.time_epoch
+            # diameter_message.pkt_number = pkt.number
             pkt_diameter_messages.append(diameter_message)
 
     return pkt_diameter_messages
